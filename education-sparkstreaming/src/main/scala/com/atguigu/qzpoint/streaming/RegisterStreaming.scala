@@ -14,7 +14,10 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 import scala.collection.mutable
 
 /**
-  * 实时统计注册人员信息
+  * 实时统计注册人员信息:
+  * 需求1：实时统计注册人数，批次为3秒一批，使用updateStateBykey算子计算历史数据和当前批次的数据总数，仅此需求使用updateStateBykey，后续需求不使用updateStateBykey。
+  * 需求2：每6秒统统计一次1分钟内的注册数据，不需要历史数据 提示:reduceByKeyAndWindow算子
+  * 需求3：观察对接数据，尝试进行调优。
   */
 object RegisterStreaming {
   private val groupid = "register_group_test"

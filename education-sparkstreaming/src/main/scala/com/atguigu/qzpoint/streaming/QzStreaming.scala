@@ -17,7 +17,11 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 import scala.collection.mutable
 
 /**
-  * 实时计算学员做题正确率与知识点掌握度
+  * 实时计算学员做题正确率与知识点掌握度:
+  * 需求1：要求Spark Streaming 保证数据不丢失，每秒1000条处理速度，需要手动维护偏移量
+  * 需求2：同一个用户做在同一门课程同一知识点下做题需要去重，并且需要记录去重后的做题id与个数。
+  * 需求3：计算知识点正确率 正确率计算公式：做题正确总个数/做题总数 保留两位小数
+  * 需求4：计算知识点掌握度 去重后的做题个数/当前知识点总题数（已知30题）*当前知识点的正确率
   */
 object QzStreaming {
 
