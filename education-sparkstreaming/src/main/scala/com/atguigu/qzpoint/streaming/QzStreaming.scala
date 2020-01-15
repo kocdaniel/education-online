@@ -5,13 +5,14 @@ import java.sql.{Connection, ResultSet}
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
+import com.atguigu.qzpoint.bean.LearnModel
 import com.atguigu.qzpoint.util.{DataSourceUtil, QueryCallback, SqlProxy}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.spark.SparkConf
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
-import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, LocationStrategies}
+import org.apache.spark.streaming.kafka010._
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
 import scala.collection.mutable
@@ -26,6 +27,8 @@ import scala.collection.mutable
 object QzStreaming {
 
   private val groupid = "qz_group_test"
+
+  val map = new mutable.HashMap[String, LearnModel]()
 
   def main(args: Array[String]): Unit = {
     val sparkConf: SparkConf = new SparkConf().setAppName("RegisterStreaming").setMaster("local[*]")
@@ -118,6 +121,29 @@ object QzStreaming {
         }
 
       })
+    })
+
+    //处理完 业务逻辑后 手动提交offset维护到本地 mysql中
+    inputDStream.foreachRDD(rdd => {
+      val sqlProxy = new SqlProxy()
+      val client = DataSourceUtil.getConnection
+      try {
+        val offsetRanges: Array[OffsetRange] = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+        for (or <- offsetRanges) {
+          sqlProxy.executeUpdate(client, "replace into `offset_manager` (groupid,topic,`partition`,untilOffset) values(?,?,?,?)",
+            Array(groupid, or.topic, or.partition.toString, or.untilOffset))
+        }
+
+        // 模拟内存泄漏
+        //        for (i <- 0 until 100000) {
+        //          val model = new LearnModel(1, 1, 1, 1, 1, 1, "", 2, 1l, 1l, 1, 1)
+        //          map.put(UUID.randomUUID().toString, model)
+        //        }
+      } catch {
+        case e: Exception => e.printStackTrace()
+      } finally {
+        sqlProxy.shutdown(client)
+      }
     })
 
     ssc.start()
